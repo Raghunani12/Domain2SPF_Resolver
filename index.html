@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Permit Sender Resolver (Pro)</title>
+    <title>Permit Sender Resolver | Production</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,70 +11,94 @@
         :root { --bg-canvas: #F9F9F8; --border-subtle: #E5E5E1; --text-main: #1A1A1A; --text-muted: #6B6B66; --accent: #3851FF; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-canvas); color: var(--text-main); }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        .card { background: white; border: 1px solid var(--border-subtle); border-radius: 8px; }
+        .card { background: white; border: 1px solid var(--border-subtle); border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .loader { width: 16px; height: 16px; border: 2px solid #EEE; border-top: 2px solid var(--accent); border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* Tree Interactions */
-        .tree-node { cursor: pointer; user-select: none; transition: background 0.2s; border-radius: 4px; padding: 2px 6px; }
-        .tree-node:hover { background: #f0f0ee; }
-        .tree-children { display: none; margin-left: 20px; border-left: 1px dashed var(--border-subtle); padding-left: 10px; }
-        .tree-children.open { display: block; }
-        .node-toggle::before { content: '▶'; display: inline-block; font-size: 8px; margin-right: 6px; transition: transform 0.2s; }
+        .tree-node { cursor: pointer; user-select: none; padding: 6px 10px; display: flex; align-items: center; gap: 8px; border-radius: 6px; transition: all 0.2s; }
+        .tree-node:hover { background: #E5E5E1; }
+        .tree-children { display: none; margin-left: 20px; border-left: 1px solid #D1D1CB; padding-left: 12px; }
+        .tree-children.open { display: block; margin-top: 4px; margin-bottom: 8px; }
+        .node-toggle::before { content: '→'; font-size: 10px; color: #999; transition: transform 0.2s; }
         .node-toggle.open::before { transform: rotate(90deg); }
+        
+        tr:nth-child(even) { background-color: #FAFAFA; }
+        .badge-ipv4 { background: #ECFDF5; color: #065F46; border: 1px solid #D1FAE5; }
+        .badge-ipv6 { background: #F5F3FF; color: #5B21B6; border: 1px solid #EDE9FE; }
     </style>
 </head>
-<body class="p-6 md:p-12">
+<body class="p-6 md:p-12 antialiased">
 
-    <header class="max-w-6xl mx-auto mb-10">
-        <h1 class="text-xl font-semibold tracking-tight">Permit Sender Resolver</h1>
-        <p class="text-sm text-[#6B6B66]">Enterprise-grade SPF infrastructure discovery</p>
+    <header class="max-w-6xl mx-auto mb-10 flex justify-between items-end">
+        <div>
+            <h1 class="text-xl font-semibold tracking-tight text-gray-900">Permit Sender Resolver</h1>
+            <p class="text-sm text-gray-500">Recursive SPF infrastructure analysis</p>
+        </div>
+        <div id="runtime-clock" class="text-[10px] mono text-gray-400 uppercase tracking-widest">Live Runtime</div>
     </header>
 
     <main class="max-w-6xl mx-auto">
-        <div class="mb-8 flex gap-3">
-            <input type="text" id="domainInput" placeholder="Enter domain or brand (e.g., stripe.com)" 
-                   class="flex-1 px-4 py-2 card focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm">
+        <div class="mb-8 flex gap-2">
+            <div class="relative flex-1">
+                <input type="text" id="domainInput" placeholder="Enter domain (e.g. google.com)" 
+                       class="w-full pl-4 pr-4 py-2.5 card focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm transition-all border-gray-300">
+            </div>
             <button id="resolveBtn" onclick="initiateResolution()"
-                    class="bg-[#1A1A1A] text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-black transition-all">
-                Resolve Infrastructure
+                    class="bg-[#1A1A1A] text-white px-8 py-2.5 rounded-lg text-sm font-medium hover:shadow-lg active:scale-95 transition-all">
+                Analyze
             </button>
         </div>
 
-        <div id="status" class="hidden mb-6 text-sm flex items-center gap-2">
-            <span class="loader"></span> <span id="statusText" class="text-muted">Crawling DNS & Fallback Databases...</span>
+        <div id="status" class="hidden mb-6 p-4 card bg-blue-50/50 border-blue-100 flex items-center gap-3">
+            <span class="loader"></span>
+            <span id="statusText" class="text-sm font-medium text-blue-700">Traversing DNS records...</span>
         </div>
 
-        <div id="dashboard" class="hidden space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="card p-4"><p class="text-[10px] text-muted font-bold uppercase mb-1">Total IPs</p><p id="stat-total" class="text-2xl font-semibold">0</p></div>
-                <div class="card p-4"><p class="text-[10px] text-muted font-bold uppercase mb-1">Chain Depth</p><p id="stat-depth" class="text-2xl font-semibold">0/10</p></div>
-                <div class="card p-4"><p class="text-[10px] text-muted font-bold uppercase mb-1">Sources</p><p id="stat-includes" class="text-2xl font-semibold">0</p></div>
-                <div id="res-type-card" class="card p-4 border-l-4 border-l-green-500"><p class="text-[10px] text-muted font-bold uppercase mb-1">Resolution Mode</p><p id="stat-mode" class="text-sm font-medium">Standard DNS</p></div>
+        <div id="dashboard" class="hidden animate-in fade-in duration-500">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="card p-4">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">Authorized IPs</span>
+                    <div id="stat-total" class="text-2xl font-semibold mt-1">0</div>
+                </div>
+                <div class="card p-4">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">Include Depth</span>
+                    <div id="stat-depth" class="text-2xl font-semibold mt-1">0</div>
+                </div>
+                <div class="card p-4">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">Records Found</span>
+                    <div id="stat-includes" class="text-2xl font-semibold mt-1">0</div>
+                </div>
+                <div class="card p-4 border-l-4 border-l-blue-500">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">Safety Check</span>
+                    <div id="stat-safety" class="text-sm font-semibold mt-2 text-green-600">Valid SPF</div>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 card overflow-hidden">
-                    <div class="p-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-                        <span class="text-[11px] font-bold text-muted uppercase tracking-wider">Authenticated IP Ranges</span>
-                        <button onclick="copyToClipboard()" id="copyBtn" class="text-xs bg-white border px-3 py-1 rounded hover:bg-gray-50 transition-all font-medium">Copy CIDR List</button>
+                <div class="lg:col-span-2 card overflow-hidden flex flex-col">
+                    <div class="px-4 py-3 bg-gray-50 border-b flex justify-between items-center">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-gray-500">Resolved CIDR Sets</h2>
+                        <button onclick="copyToClipboard()" id="copyBtn" class="text-[10px] font-bold border px-3 py-1 rounded bg-white hover:bg-gray-50 uppercase">Copy All</button>
                     </div>
-                    <div class="overflow-x-auto max-h-[600px]">
-                        <table class="w-full text-left text-sm">
-                            <thead class="sticky top-0 bg-white border-b shadow-sm"><tr class="text-muted"><th class="p-3">IP / CIDR</th><th class="p-3">Source</th><th class="p-3">Provider</th></tr></thead>
-                            <tbody id="resultsTable" class="mono divide-y divide-gray-100"></tbody>
+                    <div class="overflow-y-auto max-h-[700px]">
+                        <table class="w-full text-left text-sm border-separate border-spacing-0">
+                            <thead class="sticky top-0 bg-white shadow-sm z-10">
+                                <tr>
+                                    <th class="p-4 border-b font-semibold text-gray-600">Address / Range</th>
+                                    <th class="p-4 border-b font-semibold text-gray-600">Protocol</th>
+                                    <th class="p-4 border-b font-semibold text-gray-600">Source Domain</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTable" class="mono divide-y divide-gray-100 text-[13px]">
+                                </tbody>
                         </table>
                     </div>
                 </div>
 
                 <div class="space-y-6">
-                    <div class="card p-4">
-                        <p class="text-[11px] font-bold text-muted uppercase tracking-wider mb-4 border-b pb-2">Infrastructure Tree (Click to Expand)</p>
-                        <div id="treeView" class="text-xs space-y-1"></div>
-                    </div>
-                    <div class="card p-4 bg-[#F1F1EF]">
-                        <p class="text-[11px] font-bold text-muted uppercase tracking-wider mb-2">Primary Record</p>
-                        <pre id="rawSPF" class="mono text-[11px] break-all whitespace-pre-wrap text-blue-700"></pre>
+                    <div class="card p-5">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 border-b pb-2">DNS Inclusion Tree</h2>
+                        <div id="treeView" class="text-xs space-y-2"></div>
                     </div>
                 </div>
             </div>
@@ -83,165 +107,125 @@
 
     <script>
         const DNS_URL = 'https://dns.google/resolve';
-        let visitedDomains = new Set();
-        let ipList = [];
-        let resolutionMode = "Standard DNS";
+        let visited = new Set();
+        let masterIpList = [];
 
-        // "Internet Search" Fallback Data (Official IP Sources for Major Providers)
-        const FALLBACK_DB = {
-            "google.com": ["_spf.google.com"],
-            "microsoft.com": ["spf.protection.outlook.com"],
-            "stripe.com": ["_spf.stripe.com"],
-            "amazon.com": ["amazonses.com"],
-            "sendgrid.com": ["sendgrid.net"],
-            "mailchimp.com": ["servers.mcsv.net"]
-        };
-
-        async function fetchDNS(name, type = 'TXT') {
+        async function fetchSPF(domain) {
             try {
-                const res = await fetch(`${DNS_URL}?name=${encodeURIComponent(name)}&type=${type}`);
-                return await res.json();
-            } catch (e) { return {}; }
+                const res = await fetch(`${DNS_URL}?name=${encodeURIComponent(domain)}&type=TXT`);
+                const data = await res.json();
+                return data.Answer?.map(a => a.data).find(d => d.includes('v=spf1'))?.replace(/"/g, '') || null;
+            } catch { return null; }
         }
 
-        async function resolveSPFRecursive(domain, depth = 0, parentElement = null) {
-            if (depth > 10 || visitedDomains.has(domain)) return;
-            visitedDomains.add(domain);
+        async function resolveRecursive(domain, depth = 0, container = null) {
+            if (depth > 10 || visited.has(domain)) return;
+            visited.add(domain);
 
-            let data = await fetchDNS(domain, 'TXT');
-            let spfRecord = data.Answer?.map(a => a.data).find(d => d.includes('v=spf1'))?.replace(/"/g, '');
+            const spf = await fetchSPF(domain);
+            if (!spf) return;
 
-            // --- Fallback Logic: If DNS is empty, simulate "Official Site/Internet Search" ---
-            if (!spfRecord && depth === 0) {
-                const searchMatch = Object.keys(FALLBACK_DB).find(k => domain.includes(k));
-                if (searchMatch) {
-                    resolutionMode = "Infrastructure Fallback";
-                    spfRecord = `v=spf1 include:${FALLBACK_DB[searchMatch][0]} ~all`;
-                } else {
-                    throw new Error("No SPF record found and no fallback infrastructure identified.");
-                }
-            }
-            if (!spfRecord) return;
-            if (depth === 0) document.getElementById('rawSPF').innerText = spfRecord;
-
-            // Create Tree Node
-            const node = document.createElement('div');
-            node.className = "mb-1";
             const currentIPs = [];
+            const parts = spf.split(/\s+/);
 
-            const parts = spfRecord.split(/\s+/);
+            // High Precision Regex for IP/CIDR Extraction
             for (const part of parts) {
                 if (part.startsWith('ip4:') || part.startsWith('ip6:')) {
-                    const ip = part.split(':')[1];
-                    const entry = { ip: ip.includes('/') ? ip : `${ip}/32`, mechanism: part.startsWith('ip4') ? 'ip4' : 'ip6', source: domain };
-                    ipList.push(entry);
-                    currentIPs.push(entry.ip);
+                    const type = part.startsWith('ip4') ? 'IPv4' : 'IPv6';
+                    const ipMatch = part.split(/ip[46]:/)[1];
+                    if (ipMatch) {
+                        const formatted = ipMatch.includes('/') ? ipMatch : (type === 'IPv4' ? `${ipMatch}/32` : `${ipMatch}/128`);
+                        const entry = { ip: formatted, type, source: domain };
+                        currentIPs.push(entry);
+                        masterIpList.push(entry);
+                    }
                 }
             }
 
+            // UI Tree Building
+            const node = document.createElement('div');
+            const hasKids = parts.some(p => p.startsWith('include:'));
             node.innerHTML = `
-                <div class="tree-node ${parts.some(p => p.includes('include:')) ? 'node-toggle' : ''}" onclick="toggleNode(this)">
-                    <span class="font-medium text-blue-600">${domain}</span>
-                    <span class="text-[10px] text-muted ml-2">(${currentIPs.length} IPs)</span>
+                <div class="tree-node ${hasKids ? 'node-toggle' : ''}" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('open')">
+                    <span class="font-semibold text-blue-600">${domain}</span>
+                    <span class="text-[10px] font-bold text-gray-400 bg-gray-100 px-1.5 rounded">${currentIPs.length} IPs</span>
                 </div>
                 <div class="tree-children">
-                    ${currentIPs.length > 0 ? `<div class="p-2 bg-gray-50 rounded mono text-[10px] mb-2">${currentIPs.join('<br>')}</div>` : ''}
-                    <div class="nested-container"></div>
+                    ${currentIPs.length > 0 ? `<div class="p-3 mb-2 bg-gray-50 rounded mono text-[11px] text-gray-500 leading-relaxed">${currentIPs.map(i => i.ip).join('<br>')}</div>` : ''}
+                    <div class="sub-nodes"></div>
                 </div>
             `;
-            
-            const target = parentElement || document.getElementById('treeView');
-            target.appendChild(node);
-            const nestedContainer = node.querySelector('.nested-container');
+            (container || document.getElementById('treeView')).appendChild(node);
+            const subContainer = node.querySelector('.sub-nodes');
 
             for (const part of parts) {
                 if (part.startsWith('include:')) {
-                    await resolveSPFRecursive(part.split(':')[1], depth + 1, nestedContainer);
+                    const nextDomain = part.split(':')[1];
+                    await resolveRecursive(nextDomain, depth + 1, subContainer);
                 }
             }
         }
 
-        function toggleNode(el) {
-            el.classList.toggle('open');
-            el.nextElementSibling.classList.toggle('open');
-        }
-
         async function initiateResolution() {
-            const domain = document.getElementById('domainInput').value.trim();
-            if (!domain) return;
+            const input = document.getElementById('domainInput').value.trim();
+            if (!input) return;
 
-            ipList = []; visitedDomains.clear(); resolutionMode = "Standard DNS";
+            // Reset
+            visited.clear();
+            masterIpList = [];
             document.getElementById('status').classList.remove('hidden');
             document.getElementById('dashboard').classList.add('hidden');
-            document.getElementById('resultsTable').innerHTML = "";
             document.getElementById('treeView').innerHTML = "";
+            document.getElementById('resultsTable').innerHTML = "";
 
             try {
-                await resolveSPFRecursive(domain);
-                renderResults();
-            } catch (err) {
-                alert(err.message);
+                await resolveRecursive(input);
+                render();
+            } catch (e) {
+                alert("Resolution failed. Verify the domain exists.");
                 document.getElementById('status').classList.add('hidden');
             }
         }
 
-        function renderResults() {
+        function render() {
             document.getElementById('status').classList.add('hidden');
             document.getElementById('dashboard').classList.remove('hidden');
 
-            const uniqueIps = Array.from(new Map(ipList.map(item => [item.ip, item])).values());
-            document.getElementById('stat-total').innerText = uniqueIps.length;
-            document.getElementById('stat-depth').innerText = `${visitedDomains.size - 1}/10`;
-            document.getElementById('stat-includes').innerText = visitedDomains.size;
-            document.getElementById('stat-mode').innerText = resolutionMode;
+            // De-duplicate master list
+            const unique = Array.from(new Map(masterIpList.map(item => [item.ip, item])).values());
+
+            document.getElementById('stat-total').innerText = unique.length;
+            document.getElementById('stat-depth').innerText = visited.size > 0 ? visited.size - 1 : 0;
+            document.getElementById('stat-includes').innerText = visited.size;
             
-            const resCard = document.getElementById('res-type-card');
-            resCard.className = resolutionMode === "Standard DNS" ? "card p-4 border-l-4 border-l-green-500" : "card p-4 border-l-4 border-l-blue-500";
+            const safety = document.getElementById('stat-safety');
+            if (visited.size > 10) {
+                safety.innerText = "Too Many Lookups";
+                safety.className = "text-sm font-semibold mt-2 text-red-600";
+            } else {
+                safety.innerText = "RFC Compliant";
+                safety.className = "text-sm font-semibold mt-2 text-green-600";
+            }
 
             const tbody = document.getElementById('resultsTable');
-            uniqueIps.forEach(item => {
-                const provider = item.source.includes('google') ? 'Google' : (item.source.includes('outlook') ? 'Microsoft' : 'Private');
-                tbody.innerHTML += `
-                    <tr class="hover:bg-gray-50">
-                        <td class="p-3 font-medium">${item.ip}</td>
-                        <td class="p-3 text-muted text-xs">${item.source}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] font-bold">${provider}</span></td>
-                    </tr>
+            unique.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="p-4 font-medium text-gray-800">${item.ip}</td>
+                    <td class="p-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${item.type === 'IPv4' ? 'badge-ipv4' : 'badge-ipv6'}">${item.type}</span></td>
+                    <td class="p-4 text-gray-500 text-xs">${item.source}</td>
                 `;
+                tbody.appendChild(row);
             });
         }
 
         function copyToClipboard() {
-            const copyBtn = document.getElementById('copyBtn');
-            const text = Array.from(new Set(ipList.map(i => i.ip))).join('\n');
-            
-            // Fallback for non-HTTPS or permission-blocked environments
-            if (!navigator.clipboard) {
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    updateCopyUI(copyBtn);
-                } catch (err) { console.error('Fallback copy failed', err); }
-                document.body.removeChild(textArea);
-                return;
-            }
-
-            navigator.clipboard.writeText(text).then(() => {
-                updateCopyUI(copyBtn);
+            const btn = document.getElementById('copyBtn');
+            const txt = Array.from(new Set(masterIpList.map(i => i.ip))).join('\n');
+            navigator.clipboard.writeText(txt).then(() => {
+                btn.innerText = "✓ Copied";
+                setTimeout(() => btn.innerText = "Copy All", 2000);
             });
-        }
-
-        function updateCopyUI(btn) {
-            const original = btn.innerText;
-            btn.innerText = "✓ Copied!";
-            btn.classList.add('bg-green-50', 'text-green-700', 'border-green-200');
-            setTimeout(() => {
-                btn.innerText = original;
-                btn.classList.remove('bg-green-50', 'text-green-700', 'border-green-200');
-            }, 2000);
         }
     </script>
 </body>
