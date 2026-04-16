@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Infrastructure Auditor</title>
+    <title>Permit | Infrastructure Auditor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/inter-ui/3.19.3/inter.css">
     <style>
@@ -11,14 +11,13 @@
             --apple-bg: #F5F5F7;
             --apple-card: rgba(255, 255, 255, 0.8);
             --apple-text: #1D1D1F;
-            --apple-secondary: #86868B;
             --apple-blue: #0071E3;
             --apple-green: #34C759;
             --apple-red: #FF3B30;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Inter', -apple-system, sans-serif;
             background-color: var(--apple-bg);
             color: var(--apple-text);
             -webkit-font-smoothing: antialiased;
@@ -27,7 +26,6 @@
         .glass-card {
             background: var(--apple-card);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 18px;
             box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.04);
@@ -48,16 +46,15 @@
         }
 
         .tree-node {
-            position: relative;
             padding: 8px 12px;
             border-radius: 10px;
             transition: background 0.2s;
             cursor: pointer;
+            display: flex;
+            align-items: center;
         }
 
-        .tree-node:hover {
-            background: rgba(0, 0, 0, 0.03);
-        }
+        .tree-node:hover { background: rgba(0, 0, 0, 0.03); }
 
         .tree-indent {
             margin-left: 24px;
@@ -65,64 +62,75 @@
             padding-left: 16px;
         }
 
-        /* Animations */
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .animate-reveal {
-            animation: slideIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-        }
-
         .mono { font-family: 'SF Mono', 'ui-monospace', monospace; font-size: 0.85em; }
+        
+        .org-badge {
+            font-size: 10px;
+            font-weight: 600;
+            color: #555;
+            background: rgba(0,0,0,0.06);
+            padding: 3px 10px;
+            border-radius: 6px;
+            display: inline-block;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .btn-secondary {
+            border: 1.5px solid var(--apple-blue);
+            color: var(--apple-blue);
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .btn-secondary:hover { background: rgba(0, 113, 227, 0.05); }
+        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body class="p-4 md:p-12 min-h-screen">
 
     <main class="max-w-6xl mx-auto">
-        <header class="mb-12 text-center md:text-left">
-            <h1 class="text-4xl font-bold tracking-tight mb-2">SPF Infrastructure & Verification</h1>
-            <p class="text-lg text-slate-500 font-medium"> Raghu Sattu</p>
+        <header class="mb-12 flex flex-col md:flex-row justify-between items-center md:items-end">
+            <div class="text-center md:text-left">
+                <h1 class="text-4xl font-bold tracking-tight mb-2">Permit</h1>
+                <p class="text-lg text-slate-500 font-medium">Infrastructure Verification & Trace</p>
+            </div>
+            <div id="statusCounters" class="flex gap-2 mt-4 md:mt-0 pb-2"></div>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div class="md:col-span-1 space-y-4">
-                <div class="glass-card p-6">
-                    <label class="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-3">Target Domain</label>
+            <div class="md:col-span-1 glass-card p-6 flex flex-col justify-between">
+                <div>
+                    <label class="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-3">1. Analyze Domain</label>
                     <input type="text" id="domainInput" placeholder="example.com" class="input-field w-full px-4 py-3 text-sm mb-4">
-                    <button onclick="initiateResolution()" class="w-full bg-[#0071E3] text-white font-semibold py-3 rounded-xl hover:bg-[#0077ED] transition-all">
-                        Resolve DNS
-                    </button>
                 </div>
+                <button onclick="initiateResolution()" id="resolveBtn" class="w-full bg-[#0071E3] text-white font-semibold py-3 rounded-xl hover:bg-[#0077ED] transition-all">
+                    Resolve Records
+                </button>
             </div>
 
-            <div class="md:col-span-2">
-                <div class="glass-card p-6">
-                    <div class="flex justify-between items-center mb-3">
-                        <label class="text-xs font-bold uppercase tracking-widest text-slate-400">IP Comparison Audit</label>
-                        <span id="auditBadge" class="hidden text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">LIVE</span>
-                    </div>
-                    <textarea id="compareInput" placeholder="Paste IP addresses here..." class="input-field w-full h-[116px] p-4 text-sm mono resize-none"></textarea>
+            <div class="md:col-span-2 glass-card p-6">
+                <div class="flex justify-between items-center mb-3">
+                    <label class="text-xs font-bold uppercase tracking-widest text-slate-400">2. Verify IP List</label>
+                    <button onclick="runAudit()" id="auditBtn" class="btn-secondary px-6 py-1.5 rounded-lg text-xs uppercase tracking-wider">
+                        Run Comparison
+                    </button>
                 </div>
+                <textarea id="compareInput" placeholder="Paste IP addresses to audit (one per line)..." class="input-field w-full h-[100px] p-4 text-sm mono resize-none"></textarea>
             </div>
         </div>
 
         <div id="resultsView" class="hidden space-y-10">
-            
-            <section class="animate-reveal">
-                <div class="flex items-center justify-between mb-4 px-2">
-                    <h2 class="text-xl font-bold">Audit Report</h2>
-                    <div id="statusCounters" class="flex gap-3"></div>
-                </div>
+            <section>
                 <div class="glass-card overflow-hidden">
                     <table class="w-full text-left">
                         <thead class="bg-slate-50/50 border-b border-slate-100">
                             <tr>
-                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Entry</th>
-                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Mechanism Source</th>
-                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Reference</th>
+                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Target IP</th>
+                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Auth Status</th>
+                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Org (via ipinfo.io)</th>
+                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Reference Source</th>
                             </tr>
                         </thead>
                         <tbody id="auditTable" class="text-sm divide-y divide-slate-50"></tbody>
@@ -131,14 +139,12 @@
             </section>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 pb-20">
-                <section class="animate-reveal" style="animation-delay: 0.1s;">
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 px-2">DNS Inclusion Hierarchy</h3>
-                    <div id="treeContainer" class="glass-card p-6 min-h-[300px]">
-                        </div>
+                <section>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 px-2">Inclusion Hierarchy</h3>
+                    <div id="treeContainer" class="glass-card p-6 min-h-[300px]"></div>
                 </section>
-
-                <section class="animate-reveal" style="animation-delay: 0.2s;">
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 px-2">Global IP Repository</h3>
+                <section>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 px-2">Total Authorized IPs</h3>
                     <div class="glass-card overflow-hidden">
                         <div class="max-h-[500px] overflow-y-auto">
                             <table class="w-full text-left text-xs">
@@ -156,24 +162,43 @@
         let visited = new Set();
         let masterData = [];
 
+        // Integrated ipinfo.io Lookup
+        async function getOrg(ip) {
+            try {
+                const cleanIp = ip.split('/')[0];
+                // Using ipinfo.io's JSON endpoint
+                const res = await fetch(`https://ipinfo.io/${cleanIp}/json`);
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                return data.org || data.asn?.name || "Private Infrastructure";
+            } catch (e) {
+                // Fallback to ip-api if ipinfo limits are hit
+                try {
+                    const res2 = await fetch(`http://ip-api.com/json/${ip.split('/')[0]}?fields=org`);
+                    const data2 = await res2.json();
+                    return data2.org || "Org Data Unavailable";
+                } catch(e2) {
+                    return "Network Lookup Failed";
+                }
+            }
+        }
+
         async function initiateResolution() {
             const domain = document.getElementById('domainInput').value.trim();
             if (!domain) return;
-
-            // Reset
+            const btn = document.getElementById('resolveBtn');
+            btn.innerText = 'Resolving DNS...';
+            
             visited.clear();
             masterData = [];
             document.getElementById('treeContainer').innerHTML = "";
-            document.getElementById('auditTable').innerHTML = "";
             document.getElementById('resultsView').classList.remove('hidden');
 
             try {
                 await resolveRecursive(domain);
                 renderMasterList();
-                runAudit();
-            } catch (err) {
-                console.error(err);
-                alert("Error resolving domain.");
+            } finally {
+                btn.innerText = 'Resolve Records';
             }
         }
 
@@ -188,49 +213,43 @@
             if (!spf) return;
 
             const parts = spf.split(/\s+/);
-            const currentLevelIps = [];
+            const levelIps = [];
 
-            parts.forEach(part => {
+            for (const part of parts) {
                 if (part.startsWith('ip4:') || part.startsWith('ip6:')) {
                     const type = part.startsWith('ip4') ? 'IPv4' : 'IPv6';
-                    const ipMatch = part.split(/ip[46]:/)[1];
-                    const entry = {
-                        ip: ipMatch.includes('/') ? ipMatch : (type === 'IPv4' ? `${ipMatch}/32` : `${ipMatch}/128`),
-                        type,
-                        source: domain
+                    const val = part.split(/ip[46]:/)[1];
+                    const entry = { 
+                        ip: val.includes('/') ? val : (type === 'IPv4' ? `${val}/32` : `${val}/128`), 
+                        source: domain 
                     };
-                    currentLevelIps.push(entry);
+                    levelIps.push(entry);
                     masterData.push(entry);
                 }
-            });
+            }
 
-            // UI Building for Tree
             const container = targetEl || document.getElementById('treeContainer');
-            const nodeWrapper = document.createElement('div');
-            nodeWrapper.className = "mb-2";
-            
-            const ipsHtml = currentLevelIps.length > 0 
-                ? `<div class="mt-2 grid grid-cols-1 gap-1">${currentLevelIps.map(i => `<span class="mono text-xs bg-white border border-slate-100 px-2 py-1 rounded shadow-sm w-fit">${i.ip}</span>`).join('')}</div>`
-                : "";
-
-            nodeWrapper.innerHTML = `
+            const wrapper = document.createElement('div');
+            wrapper.className = "mb-4";
+            wrapper.innerHTML = `
                 <div class="tree-node" onclick="this.nextElementSibling.classList.toggle('hidden')">
                     <span class="text-blue-500 font-bold mr-2">⊙</span>
                     <span class="font-semibold text-sm">${domain}</span>
-                    <span class="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full uppercase">${currentLevelIps.length} IPs</span>
+                    <span class="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full uppercase">${levelIps.length} IPs</span>
                 </div>
                 <div class="tree-indent">
-                    ${ipsHtml}
-                    <div class="child-nodes mt-3"></div>
+                    <div class="flex flex-wrap gap-1 mt-2 mb-2">
+                        ${levelIps.map(i => `<span class="mono text-[10px] bg-white border border-slate-100 px-2 py-1 rounded shadow-sm">${i.ip}</span>`).join('')}
+                    </div>
+                    <div class="child-nodes"></div>
                 </div>
             `;
-            container.appendChild(nodeWrapper);
+            container.appendChild(wrapper);
 
-            // Recurse includes
-            const childrenContainer = nodeWrapper.querySelector('.child-nodes');
+            const childrenBox = wrapper.querySelector('.child-nodes');
             for (const part of parts) {
                 if (part.startsWith('include:')) {
-                    await resolveRecursive(part.split(':')[1], depth + 1, childrenContainer);
+                    await resolveRecursive(part.split(':')[1], depth + 1, childrenBox);
                 }
             }
         }
@@ -246,40 +265,49 @@
             `).join('');
         }
 
-        function runAudit() {
+        async function runAudit() {
             const raw = document.getElementById('compareInput').value;
             const inputIps = raw.split(/[\n, ]+/).map(i => i.trim()).filter(i => i);
+            if(inputIps.length === 0) return;
+
             const table = document.getElementById('auditTable');
-            table.innerHTML = "";
+            const btn = document.getElementById('auditBtn');
+            table.innerHTML = "<tr><td colspan='4' class='p-12 text-center text-slate-400 italic animate-pulse'>Auditing via IPinfo.io...</td></tr>";
+            btn.innerText = 'Analyzing...';
+            btn.disabled = true;
 
             let passed = 0;
+            let resultsHtml = "";
 
-            inputIps.forEach(input => {
-                // Exact or Subnet Match (Simple check)
+            for (const input of inputIps) {
                 const match = masterData.find(m => m.ip === input || m.ip.split('/')[0] === input);
                 if (match) passed++;
 
-                table.innerHTML += `
+                const org = await getOrg(input);
+
+                resultsHtml += `
                     <tr class="${match ? 'bg-green-50/20' : 'bg-red-50/20'}">
                         <td class="p-5 font-semibold text-slate-800 mono">${input}</td>
                         <td class="p-5">
-                            <span class="flex items-center gap-2 ${match ? 'text-green-600' : 'text-red-500'} font-bold text-xs uppercase tracking-tighter">
-                                <span class="w-2 h-2 rounded-full ${match ? 'bg-green-500' : 'bg-red-500'}"></span>
-                                ${match ? 'Authenticated' : 'Unauthorized'}
+                            <span class="flex items-center gap-2 ${match ? 'text-green-600' : 'text-red-500'} font-bold text-[10px] uppercase tracking-wider">
+                                <span class="w-1.5 h-1.5 rounded-full ${match ? 'bg-green-500' : 'bg-red-500'}"></span>
+                                ${match ? 'Authorized' : 'Unauthorized'}
                             </span>
                         </td>
-                        <td class="p-5 text-slate-500 font-medium">${match ? match.source : '--'}</td>
-                        <td class="p-5 text-right mono text-xs text-slate-400">${match ? `Matched ${match.ip}` : 'No Match'}</td>
+                        <td class="p-5"><span class="org-badge">${org}</span></td>
+                        <td class="p-5 text-right text-xs text-slate-400 font-medium">${match ? match.source : 'No Record'}</td>
                     </tr>
                 `;
-            });
+            }
+
+            table.innerHTML = resultsHtml;
+            btn.innerText = 'Run Comparison';
+            btn.disabled = false;
 
             document.getElementById('statusCounters').innerHTML = `
-                <div class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-[11px] font-bold">PASS: ${passed}</div>
-                <div class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-[11px] font-bold">FAIL: ${inputIps.length - passed}</div>
+                <div class="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-[11px] font-bold shadow-sm">AUTH: ${passed}</div>
+                <div class="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[11px] font-bold shadow-sm">FAIL: ${inputIps.length - passed}</div>
             `;
-            
-            if(inputIps.length > 0) document.getElementById('auditBadge').classList.remove('hidden');
         }
     </script>
 </body>
