@@ -1,320 +1,3 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Permit | Infrastructure Auditor</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/inter-ui/3.19.3/inter.css">
-    <style>
-        :root {
-            --apple-bg: #F5F5F7;
-            --apple-card: rgba(255, 255, 255, 0.8);
-            --apple-text: #1D1D1F;
-            --apple-blue: #0071E3;
-            --apple-green: #34C759;
-            --apple-red: #FF3B30;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: var(--apple-bg);
-            color: var(--apple-text);
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .glass-card {
-            background: var(--apple-card);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 18px;
-            box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.04);
-        }
-
-        .input-field {
-            background: rgba(0, 0, 0, 0.03);
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            border-radius: 12px;
-            transition: all 0.2s ease;
-        }
-
-        .input-field:focus {
-            background: white;
-            border-color: var(--apple-blue);
-            box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
-            outline: none;
-        }
-
-        .tree-node {
-            padding: 8px 12px;
-            border-radius: 10px;
-            transition: background 0.2s;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-        }
-
-        .tree-node:hover { background: rgba(0, 0, 0, 0.03); }
-
-        .tree-indent {
-            margin-left: 24px;
-            border-left: 1.5px solid rgba(0, 0, 0, 0.06);
-            padding-left: 16px;
-        }
-
-        .mono { font-family: 'SF Mono', 'ui-monospace', monospace; font-size: 0.85em; }
-        
-        .org-badge {
-            font-size: 10px;
-            font-weight: 600;
-            color: #555;
-            background: rgba(0,0,0,0.06);
-            padding: 3px 10px;
-            border-radius: 6px;
-            display: inline-block;
-            max-width: 200px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .btn-secondary {
-            border: 1.5px solid var(--apple-blue);
-            color: var(--apple-blue);
-            font-weight: 600;
-            transition: all 0.2s ease;
-        }
-        .btn-secondary:hover { background: rgba(0, 113, 227, 0.05); }
-        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-    </style>
-</head>
-<body class="p-4 md:p-12 min-h-screen">
-
-    <main class="max-w-6xl mx-auto">
-        <header class="mb-12 flex flex-col md:flex-row justify-between items-center md:items-end">
-            <div class="text-center md:text-left">
-                <h1 class="text-4xl font-bold tracking-tight mb-2">Permit</h1>
-                <p class="text-lg text-slate-500 font-medium">Infrastructure Verification & Trace</p>
-            </div>
-            <div id="statusCounters" class="flex gap-2 mt-4 md:mt-0 pb-2"></div>
-        </header>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div class="md:col-span-1 glass-card p-6 flex flex-col justify-between">
-                <div>
-                    <label class="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-3">1. Analyze Domain</label>
-                    <input type="text" id="domainInput" placeholder="example.com" class="input-field w-full px-4 py-3 text-sm mb-4">
-                </div>
-                <button onclick="initiateResolution()" id="resolveBtn" class="w-full bg-[#0071E3] text-white font-semibold py-3 rounded-xl hover:bg-[#0077ED] transition-all">
-                    Resolve Records
-                </button>
-            </div>
-
-            <div class="md:col-span-2 glass-card p-6">
-                <div class="flex justify-between items-center mb-3">
-                    <label class="text-xs font-bold uppercase tracking-widest text-slate-400">2. Verify IP List</label>
-                    <button onclick="runAudit()" id="auditBtn" class="btn-secondary px-6 py-1.5 rounded-lg text-xs uppercase tracking-wider">
-                        Run Comparison
-                    </button>
-                </div>
-                <textarea id="compareInput" placeholder="Paste IP addresses to audit (one per line)..." class="input-field w-full h-[100px] p-4 text-sm mono resize-none"></textarea>
-            </div>
-        </div>
-
-        <div id="resultsView" class="hidden space-y-10">
-            <section>
-                <div class="glass-card overflow-hidden">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-50/50 border-b border-slate-100">
-                            <tr>
-                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Target IP</th>
-                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Auth Status</th>
-                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest">Org (via ipinfo.io)</th>
-                                <th class="p-5 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Reference Source</th>
-                            </tr>
-                        </thead>
-                        <tbody id="auditTable" class="text-sm divide-y divide-slate-50"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 pb-20">
-                <section>
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 px-2">Inclusion Hierarchy</h3>
-                    <div id="treeContainer" class="glass-card p-6 min-h-[300px]"></div>
-                </section>
-                <section>
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 px-2">Total Authorized IPs</h3>
-                    <div class="glass-card overflow-hidden">
-                        <div class="max-h-[500px] overflow-y-auto">
-                            <table class="w-full text-left text-xs">
-                                <tbody id="masterList" class="mono divide-y divide-slate-50"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        const DNS_URL = 'https://dns.google/resolve';
-        let visited = new Set();
-        let masterData = [];
-
-        // Integrated ipinfo.io Lookup
-        async function getOrg(ip) {
-            try {
-                const cleanIp = ip.split('/')[0];
-                // Using ipinfo.io's JSON endpoint
-                const res = await fetch(`https://ipinfo.io/${cleanIp}/json`);
-                if (!res.ok) throw new Error();
-                const data = await res.json();
-                return data.org || data.asn?.name || "Private Infrastructure";
-            } catch (e) {
-                // Fallback to ip-api if ipinfo limits are hit
-                try {
-                    const res2 = await fetch(`http://ip-api.com/json/${ip.split('/')[0]}?fields=org`);
-                    const data2 = await res2.json();
-                    return data2.org || "Org Data Unavailable";
-                } catch(e2) {
-                    return "Network Lookup Failed";
-                }
-            }
-        }
-
-        async function initiateResolution() {
-            const domain = document.getElementById('domainInput').value.trim();
-            if (!domain) return;
-            const btn = document.getElementById('resolveBtn');
-            btn.innerText = 'Resolving DNS...';
-            
-            visited.clear();
-            masterData = [];
-            document.getElementById('treeContainer').innerHTML = "";
-            document.getElementById('resultsView').classList.remove('hidden');
-
-            try {
-                await resolveRecursive(domain);
-                renderMasterList();
-            } finally {
-                btn.innerText = 'Resolve Records';
-            }
-        }
-
-        async function resolveRecursive(domain, depth = 0, targetEl = null) {
-            if (depth > 10 || visited.has(domain)) return;
-            visited.add(domain);
-
-            const res = await fetch(`${DNS_URL}?name=${encodeURIComponent(domain)}&type=TXT`);
-            const data = await res.json();
-            const spf = data.Answer?.map(a => a.data).find(d => d.includes('v=spf1'))?.replace(/"/g, '');
-            
-            if (!spf) return;
-
-            const parts = spf.split(/\s+/);
-            const levelIps = [];
-
-            for (const part of parts) {
-                if (part.startsWith('ip4:') || part.startsWith('ip6:')) {
-                    const type = part.startsWith('ip4') ? 'IPv4' : 'IPv6';
-                    const val = part.split(/ip[46]:/)[1];
-                    const entry = { 
-                        ip: val.includes('/') ? val : (type === 'IPv4' ? `${val}/32` : `${val}/128`), 
-                        source: domain 
-                    };
-                    levelIps.push(entry);
-                    masterData.push(entry);
-                }
-            }
-
-            const container = targetEl || document.getElementById('treeContainer');
-            const wrapper = document.createElement('div');
-            wrapper.className = "mb-4";
-            wrapper.innerHTML = `
-                <div class="tree-node" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                    <span class="text-blue-500 font-bold mr-2">⊙</span>
-                    <span class="font-semibold text-sm">${domain}</span>
-                    <span class="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full uppercase">${levelIps.length} IPs</span>
-                </div>
-                <div class="tree-indent">
-                    <div class="flex flex-wrap gap-1 mt-2 mb-2">
-                        ${levelIps.map(i => `<span class="mono text-[10px] bg-white border border-slate-100 px-2 py-1 rounded shadow-sm">${i.ip}</span>`).join('')}
-                    </div>
-                    <div class="child-nodes"></div>
-                </div>
-            `;
-            container.appendChild(wrapper);
-
-            const childrenBox = wrapper.querySelector('.child-nodes');
-            for (const part of parts) {
-                if (part.startsWith('include:')) {
-                    await resolveRecursive(part.split(':')[1], depth + 1, childrenBox);
-                }
-            }
-        }
-
-        function renderMasterList() {
-            const list = document.getElementById('masterList');
-            const unique = Array.from(new Map(masterData.map(i => [i.ip, i])).values());
-            list.innerHTML = unique.map(i => `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="p-4 text-slate-800 font-medium">${i.ip}</td>
-                    <td class="p-4 text-slate-400 italic text-right">${i.source}</td>
-                </tr>
-            `).join('');
-        }
-
-        async function runAudit() {
-            const raw = document.getElementById('compareInput').value;
-            const inputIps = raw.split(/[\n, ]+/).map(i => i.trim()).filter(i => i);
-            if(inputIps.length === 0) return;
-
-            const table = document.getElementById('auditTable');
-            const btn = document.getElementById('auditBtn');
-            table.innerHTML = "<tr><td colspan='4' class='p-12 text-center text-slate-400 italic animate-pulse'>Auditing via IPinfo.io...</td></tr>";
-            btn.innerText = 'Analyzing...';
-            btn.disabled = true;
-
-            let passed = 0;
-            let resultsHtml = "";
-
-            for (const input of inputIps) {
-                const match = masterData.find(m => m.ip === input || m.ip.split('/')[0] === input);
-                if (match) passed++;
-
-                const org = await getOrg(input);
-
-                resultsHtml += `
-                    <tr class="${match ? 'bg-green-50/20' : 'bg-red-50/20'}">
-                        <td class="p-5 font-semibold text-slate-800 mono">${input}</td>
-                        <td class="p-5">
-                            <span class="flex items-center gap-2 ${match ? 'text-green-600' : 'text-red-500'} font-bold text-[10px] uppercase tracking-wider">
-                                <span class="w-1.5 h-1.5 rounded-full ${match ? 'bg-green-500' : 'bg-red-500'}"></span>
-                                ${match ? 'Authorized' : 'Unauthorized'}
-                            </span>
-                        </td>
-                        <td class="p-5"><span class="org-badge">${org}</span></td>
-                        <td class="p-5 text-right text-xs text-slate-400 font-medium">${match ? match.source : 'No Record'}</td>
-                    </tr>
-                `;
-            }
-
-            table.innerHTML = resultsHtml;
-            btn.innerText = 'Run Comparison';
-            btn.disabled = false;
-
-            document.getElementById('statusCounters').innerHTML = `
-                <div class="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-[11px] font-bold shadow-sm">AUTH: ${passed}</div>
-                <div class="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-[11px] font-bold shadow-sm">FAIL: ${inputIps.length - passed}</div>
-            `;
-        }
-    </script>
-</body>
-</html> -->
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -530,12 +213,95 @@ tbody tr:hover td { background: var(--accent-soft); }
 .mech-all  { color:#ae2222; border-color:rgba(174,34,34,0.22);  background:rgba(174,34,34,0.07); }
 .mech-exists{color:#095e80; border-color:rgba(9,94,128,0.22);   background:rgba(9,94,128,0.07); }
 
-.tree-node { margin: 8px 0; border-left: 2px solid var(--border-mid); padding-left: 16px; }
-.tree-node.root { border-left: 2px solid var(--accent); }
-.tree-header { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-.tree-domain { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); }
-.tree-spf { font-family: var(--mono); font-size: 11px; color: var(--text-3); word-break: break-all; margin: 3px 0 8px; line-height: 1.75; }
+/* ─── DNS Tree ──────────────────────────────────────────────────────────────── */
+.tree-root-wrap { display: flex; flex-direction: column; gap: 4px; }
 
+.tree-node {
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-mid);
+  background: var(--surface);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.tree-node:has(.tree-toggle:focus-visible) { box-shadow: 0 0 0 3px var(--accent-light); }
+
+.tree-node.depth-0 { border-color: rgba(0,122,255,0.3); box-shadow: 0 2px 8px rgba(0,122,255,0.08); }
+.tree-node.depth-1 { margin-left: 24px; border-color: rgba(160,40,120,0.22); }
+.tree-node.depth-2 { margin-left: 48px; border-color: rgba(26,110,66,0.22); }
+.tree-node.depth-3 { margin-left: 72px; border-color: var(--border-mid); }
+
+.tree-toggle {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 16px;
+  cursor: pointer; background: none; border: none; font-family: var(--sans);
+  text-align: left; transition: background 0.15s; user-select: none;
+}
+.tree-toggle:hover { background: var(--accent-soft); }
+.tree-toggle[aria-expanded="true"] { border-bottom: 1px solid var(--border); }
+
+.tree-chevron {
+  flex-shrink: 0; width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-4); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), color 0.15s;
+}
+.tree-toggle[aria-expanded="true"] .tree-chevron {
+  transform: rotate(90deg); color: var(--accent);
+}
+.tree-chevron svg { width: 12px; height: 12px; }
+
+.tree-node-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.tree-depth-icon {
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; font-family: var(--mono);
+}
+.depth-0 .tree-depth-icon { background: rgba(0,122,255,0.10); color: var(--accent); }
+.depth-1 .tree-depth-icon { background: rgba(160,40,120,0.08); color: #a02878; }
+.depth-2 .tree-depth-icon { background: rgba(26,110,66,0.08); color: #1a6e42; }
+.depth-3 .tree-depth-icon { background: var(--surface2); color: var(--text-3); }
+
+.tree-domain-label { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-node-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.tree-ip-count { font-size: 11px; font-weight: 500; color: var(--text-4); font-family: var(--mono); }
+
+.tree-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.tree-body.open { grid-template-rows: 1fr; }
+.tree-body-inner { overflow: hidden; }
+
+.tree-content { padding: 14px 16px; }
+
+.tree-spf-record {
+  font-family: var(--mono); font-size: 11.5px; color: var(--text-3);
+  word-break: break-all; line-height: 1.8; margin-bottom: 10px;
+  padding: 10px 12px; background: var(--surface2); border-radius: var(--r-xs);
+  border: 1px solid var(--border);
+}
+.tree-spf-record .spf-token { padding: 0 2px; border-radius: 3px; }
+.spf-token-v { color: var(--text-3); }
+.spf-token-ip4 { color: #1855a8; background: rgba(24,85,168,0.06); }
+.spf-token-ip6 { color: #5229a3; background: rgba(82,41,163,0.06); }
+.spf-token-include { color: #a02878; background: rgba(160,40,120,0.06); }
+.spf-token-a { color: #1a6e42; background: rgba(26,110,66,0.06); }
+.spf-token-mx { color: #7a4900; background: rgba(122,73,0,0.06); }
+.spf-token-redirect { color: #4e32a0; background: rgba(78,50,160,0.06); }
+.spf-token-all-fail { color: #ae2222; background: rgba(174,34,34,0.06); }
+.spf-token-all-soft { color: #7d4e00; background: rgba(125,78,0,0.06); }
+.spf-token-all-pass { color: var(--ok); background: var(--ok-bg); }
+.spf-token-all-neutral { color: var(--info); background: var(--info-bg); }
+
+.tree-mechs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+
+.tree-children { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+
+.tree-error-note { 
+  font-size: 12px; color: var(--bad); font-style: italic; 
+  padding: 8px 12px; background: var(--bad-bg); border-radius: var(--r-xs); 
+  border: 1px solid var(--bad-border);
+}
+
+/* ─── DMARC ──────────────────────────────────────────────────────────────────*/
 .dmarc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(186px, 1fr)); gap: 8px; margin-top: 14px; }
 .dmarc-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 13px 15px; }
 .dmarc-key { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-3); margin-bottom: 5px; }
@@ -577,6 +343,20 @@ pre.raw-spf {
   border-radius: var(--r-sm); padding: 12px 14px; margin-top: 8px;
   white-space: pre-wrap; word-break: break-all; line-height: 1.75;
 }
+
+/* Tree controls bar */
+.tree-controls {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  padding: 8px 12px; background: var(--surface2); border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+.tree-controls-label { font-size: 12px; color: var(--text-3); flex: 1; }
+.tree-ctrl-btn {
+  font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--border-mid); background: var(--surface); color: var(--text-2);
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.tree-ctrl-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -592,8 +372,8 @@ pre.raw-spf {
       <span class="logo-name">Permit</span>
     </div>
     <div class="logo-sep"></div>
-    <span class="logo-sub">RFC 7208 · SPF · DMARC · IP Audit</span>
-    <span class="header-badge">v2.1</span>
+    <span class="logo-sub">RAGHU SATTU . RFC 7208 · SPF · DMARC · IP Audit</span>
+    <span class="header-badge">v2.2</span>
   </header>
 
   <div class="card">
@@ -660,7 +440,18 @@ pre.raw-spf {
           </div>
         </div>
       </div>
-      <div class="tab-pane" id="treeView"><div class="card-body tight"><div id="treeOutput"></div></div></div>
+
+      <div class="tab-pane" id="treeView">
+        <div class="card-body tight">
+          <div class="tree-controls">
+            <span class="tree-controls-label" id="treeStats">DNS resolution tree</span>
+            <button class="tree-ctrl-btn" onclick="setAllTreeNodes(true)">Expand All</button>
+            <button class="tree-ctrl-btn" onclick="setAllTreeNodes(false)">Collapse All</button>
+          </div>
+          <div id="treeOutput" class="tree-root-wrap"></div>
+        </div>
+      </div>
+
       <div class="tab-pane" id="rawSpf"><div class="card-body tight"><div id="rawSpfOutput"></div></div></div>
     </div>
 
@@ -692,7 +483,7 @@ pre.raw-spf {
       <div class="card-body"><div id="dmarcOutput"></div></div>
     </div>
 
-    <!-- Extra Records: DKIM selectors, MTA-STS, BIMI -->
+    <!-- Extra Records -->
     <div class="card">
       <div class="card-header"><div class="card-title">Additional Email Security Records</div></div>
       <div class="tab-bar">
@@ -714,14 +505,9 @@ pre.raw-spf {
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
-const DNS_API      = "https://dns.google/resolve";
-const IP_INFO_API  = "https://ipapi.co";
+const DNS_API   = "https://dns.google/resolve";
+const RFC_LIMIT = 10;
 
-// RFC 7208 §4.6.4: only these mechanism types count toward the 10-lookup limit.
-// ip4, ip6, v=spf1 TXT fetches, _dmarc TXT, DKIM TXT do NOT count.
-const RFC_LIMIT    = 10;
-
-// Common DKIM selectors to probe
 const DKIM_SELECTORS = [
   'default','google','selector1','selector2','k1','k2','mail','smtp',
   'dkim','email','s1','s2','protonmail','zoho','mailchimp','sendgrid',
@@ -732,24 +518,14 @@ const DKIM_SELECTORS = [
 // STATE
 // ─────────────────────────────────────────────────────────────────────────────
 let state = {
-  rfcLookups: 0,          // counts ONLY RFC-7208-qualifying mechanisms
-  visited:    new Set(),
-  flat:       [],
-  dnsCache:   new Map(),
-  rawRecords: [],
-  treeRoot:   null,
-  allQualifier: null,
-  limitHit:   false,      // soft flag — warn but never throw
-  dmarcTags:  {},
-  hasSPF:     false,
-  hasDMARC:   false,
+  rfcLookups: 0, visited: new Set(), flat: [], dnsCache: new Map(),
+  rawRecords: [], treeRoot: null, allQualifier: null, limitHit: false,
+  dmarcTags: {}, hasSPF: false, hasDMARC: false,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DNS — two separate helpers so TXT lookups never count toward RFC limit
+// DNS
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Raw fetch — never increments rfcLookups
 async function dnsRaw(name, type) {
   const key = `${name}|${type}`;
   if (state.dnsCache.has(key)) return state.dnsCache.get(key);
@@ -765,7 +541,6 @@ async function dnsRaw(name, type) {
   } catch { state.dnsCache.set(key, []); return []; }
 }
 
-// Mechanism lookup — increments rfcLookups, warns (never throws) if limit exceeded
 async function dnsLookup(name, type) {
   state.rfcLookups++;
   setProgress(Math.min(state.rfcLookups / RFC_LIMIT * 55, 55));
@@ -773,7 +548,7 @@ async function dnsLookup(name, type) {
     state.limitHit = true;
     addAlert('warn',
       `RFC 7208 §4.6.4 lookup limit of ${RFC_LIMIT} reached — further mechanism lookups skipped. ` +
-      `This domain's SPF chain is over-limit (PERMERROR in strict evaluators). All collected IPs above are shown.`
+      `This domain's SPF chain is over-limit (PERMERROR in strict evaluators).`
     );
   }
   if (state.limitHit && state.rfcLookups > RFC_LIMIT) return [];
@@ -781,10 +556,56 @@ async function dnsLookup(name, type) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXACT IP MATCH — strips CIDR notation, compares bare IPs only
+// IP MATCHING
 // ─────────────────────────────────────────────────────────────────────────────
+function ipToInt(ip) {
+  const parts = ip.split('.').map(Number);
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
 function matchIP(inputIP, cidrOrIP) {
-  return inputIP.trim() === cidrOrIP.split('/')[0].trim();
+  const input = inputIP.trim();
+  const [addr, prefix] = cidrOrIP.split('/');
+  const isInputV6  = input.includes(':');
+  const isCidrV6   = addr.includes(':');
+
+  if (isInputV6 !== isCidrV6) return false; // version mismatch
+
+  if (!isInputV6) {
+    // IPv4
+    if (!prefix || prefix === '32') return input === addr;
+    try {
+      const maskLen = parseInt(prefix, 10);
+      const mask    = maskLen === 0 ? 0 : (~0 << (32 - maskLen)) >>> 0;
+      return (ipToInt(input) & mask) === (ipToInt(addr) & mask);
+    } catch { return false; }
+  } else {
+    // IPv6 — expand and compare
+    if (!prefix || prefix === '128') return normalizeIPv6(input) === normalizeIPv6(addr);
+    try {
+      const maskLen  = parseInt(prefix, 10);
+      const inputBig = ipv6ToBigInt(normalizeIPv6(input));
+      const addrBig  = ipv6ToBigInt(normalizeIPv6(addr));
+      const mask     = maskLen === 0 ? 0n : (~0n << BigInt(128 - maskLen));
+      return (inputBig & mask) === (addrBig & mask);
+    } catch { return false; }
+  }
+}
+
+function normalizeIPv6(ip) {
+  const [main, tail] = ip.split('::');
+  if (tail === undefined) {
+    return main.split(':').map(h => h.padStart(4,'0')).join(':');
+  }
+  const left  = main ? main.split(':') : [];
+  const right = tail ? tail.split(':') : [];
+  const fill  = 8 - left.length - right.length;
+  return [...left, ...Array(fill).fill('0000'), ...right]
+    .map(h => h.padStart(4,'0')).join(':');
+}
+
+function ipv6ToBigInt(normalized) {
+  return normalized.split(':').reduce((acc, h) => (acc << 16n) | BigInt(parseInt(h, 16)), 0n);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -797,11 +618,10 @@ async function resolveSPF(domain, depth, parentNode) {
   }
   state.visited.add(domain);
 
-  const node = { domain, record: null, mechanisms: [], children: [], error: null };
+  const node = { domain, record: null, mechanisms: [], children: [], error: null, depth };
   if (parentNode) parentNode.children.push(node);
   else            state.treeRoot = node;
 
-  // TXT fetch for SPF record does NOT count toward RFC limit
   const txts    = await dnsRaw(domain, "TXT");
   const spfRecs = txts.filter(r => r.data.startsWith("v=spf1"));
 
@@ -819,14 +639,13 @@ async function resolveSPF(domain, depth, parentNode) {
   state.rawRecords.push({ domain, record: spf });
   if (depth === 0) state.hasSPF = true;
 
-  const terms = spf.split(/\s+/).slice(1); // skip v=spf1
+  const terms = spf.split(/\s+/).slice(1);
 
   for (const term of terms) {
     let qualifier = '+', mech = term;
     if (['+','-','~','?'].includes(term[0])) { qualifier = term[0]; mech = term.slice(1); }
     node.mechanisms.push({ raw: term, qualifier, mech });
 
-    // ── ip4 / ip6: no DNS lookup, no counter increment ──────────────────────
     if (mech.startsWith('ip4:')) {
       state.flat.push({ cidr: normCIDR(mech.slice(4), 4), version:'4', mech:'ip4', qualifier, source:domain });
       continue;
@@ -835,50 +654,42 @@ async function resolveSPF(domain, depth, parentNode) {
       state.flat.push({ cidr: normCIDR(mech.slice(4), 6), version:'6', mech:'ip6', qualifier, source:domain });
       continue;
     }
-
-    // ── a mechanism: 1 RFC lookup (resolves A + AAAA of target) ─────────────
     if (mech === 'a' || /^a[:/]/.test(mech)) {
       let target = domain, cidrSuffix4 = '/32', cidrSuffix6 = '/128';
       if (mech.includes(':')) {
         const rest = mech.slice(2), sl = rest.indexOf('/');
-        target      = sl >= 0 ? rest.slice(0, sl) : rest;
+        target = sl >= 0 ? rest.slice(0, sl) : rest;
         cidrSuffix4 = sl >= 0 ? '/' + rest.slice(sl+1) : '/32';
         cidrSuffix6 = sl >= 0 ? '/' + rest.slice(sl+1) : '/128';
       } else if (mech.includes('/')) {
         cidrSuffix4 = cidrSuffix6 = mech.slice(1);
       }
-      // counts as 1 RFC lookup for the 'a' mechanism
       const [aRecs, aaaaRecs] = await Promise.all([dnsLookup(target,"A"), dnsRaw(target,"AAAA")]);
-      aRecs.forEach(r   => state.flat.push({ cidr: r.data + cidrSuffix4, version:'4', mech:'a', qualifier, source:target }));
+      aRecs.forEach(r    => state.flat.push({ cidr: r.data + cidrSuffix4, version:'4', mech:'a', qualifier, source:target }));
       aaaaRecs.forEach(r => state.flat.push({ cidr: r.data + cidrSuffix6, version:'6', mech:'a', qualifier, source:target }));
       continue;
     }
-
-    // ── mx mechanism: 1 RFC lookup for MX + 1 per MX host (A lookup) ────────
     if (mech === 'mx' || /^mx[:/]/.test(mech)) {
       let target = domain, cidrSuffix4 = '/32', cidrSuffix6 = '/128';
       if (mech.includes(':')) {
         const rest = mech.slice(3), sl = rest.indexOf('/');
-        target      = sl >= 0 ? rest.slice(0, sl) : rest;
+        target = sl >= 0 ? rest.slice(0, sl) : rest;
         cidrSuffix4 = sl >= 0 ? '/' + rest.slice(sl+1) : '/32';
         cidrSuffix6 = sl >= 0 ? '/' + rest.slice(sl+1) : '/128';
       } else if (mech.includes('/')) {
         cidrSuffix4 = cidrSuffix6 = mech.slice(2);
       }
-      const mxRecs = await dnsLookup(target, "MX"); // 1 RFC lookup
+      const mxRecs = await dnsLookup(target, "MX");
       for (const mx of mxRecs) {
         const host = mx.data.split(' ').pop().replace(/\.$/, '');
-        // each MX A-lookup counts as another RFC lookup
         const [aRecs, aaaaRecs] = await Promise.all([dnsLookup(host,"A"), dnsRaw(host,"AAAA")]);
         aRecs.forEach(r    => state.flat.push({ cidr: r.data + cidrSuffix4, version:'4', mech:'mx', qualifier, source:target }));
         aaaaRecs.forEach(r => state.flat.push({ cidr: r.data + cidrSuffix6, version:'6', mech:'mx', qualifier, source:target }));
       }
       continue;
     }
-
-    // ── include: 1 RFC lookup (the recursive resolveSPF call) ───────────────
     if (mech.startsWith('include:')) {
-      state.rfcLookups++; // include itself counts as 1
+      state.rfcLookups++;
       setProgress(Math.min(state.rfcLookups / RFC_LIMIT * 55, 55));
       if (state.limitHit && state.rfcLookups > RFC_LIMIT) {
         addAlert('warn', `Skipped include:${mech.slice(8)} — RFC lookup limit reached`);
@@ -892,8 +703,6 @@ async function resolveSPF(domain, depth, parentNode) {
       await resolveSPF(mech.slice(8), depth + 1, node);
       continue;
     }
-
-    // ── redirect: counts as 1 lookup ────────────────────────────────────────
     if (mech.startsWith('redirect=')) {
       state.rfcLookups++;
       if (!state.limitHit || state.rfcLookups <= RFC_LIMIT) {
@@ -903,20 +712,14 @@ async function resolveSPF(domain, depth, parentNode) {
       }
       return;
     }
-
-    // ── exists: 1 lookup at runtime, noted but not resolvable ───────────────
     if (mech.startsWith('exists:')) {
       addAlert('info', `${domain}: exists:${mech.slice(7)} requires runtime SMTP context — noted only`);
       continue;
     }
-
-    // ── ptr: deprecated ─────────────────────────────────────────────────────
     if (mech === 'ptr' || mech.startsWith('ptr:')) {
       addAlert('warn', `${domain}: ptr mechanism is deprecated (RFC 7208 §5.5) and slow — avoid`);
       continue;
     }
-
-    // ── all: record the qualifier, stop processing this record ───────────────
     if (mech === 'all') {
       if (depth === 0) state.allQualifier = qualifier;
       break;
@@ -929,13 +732,12 @@ function normCIDR(s, v) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DMARC  (uses dnsRaw — not counted toward SPF limit)
+// DMARC
 // ─────────────────────────────────────────────────────────────────────────────
 async function getDMARC(domain) {
   const recs = await dnsRaw("_dmarc." + domain, "TXT");
   return (recs.find(r => r.data.startsWith("v=DMARC1")) || {}).data || null;
 }
-
 function parseDMARC(record) {
   const tags = {};
   if (!record) return tags;
@@ -947,11 +749,10 @@ function parseDMARC(record) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DKIM PROBING  (uses dnsRaw — not counted)
+// DKIM
 // ─────────────────────────────────────────────────────────────────────────────
 async function probeDKIM(domain) {
   const found = [];
-  // Probe in parallel batches of 5
   for (let i = 0; i < DKIM_SELECTORS.length; i += 5) {
     const batch = DKIM_SELECTORS.slice(i, i+5);
     const results = await Promise.all(
@@ -967,39 +768,57 @@ async function probeDKIM(domain) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MTA-STS / BIMI / TLS-RPT  (all use dnsRaw)
+// MTA-STS / BIMI / TLS-RPT
 // ─────────────────────────────────────────────────────────────────────────────
 async function getMtaSts(domain) {
   const recs = await dnsRaw(`_mta-sts.${domain}`, "TXT");
   return (recs.find(r => r.data.startsWith("v=STSv1")) || {}).data || null;
 }
-
 async function getBimi(domain) {
   const recs = await dnsRaw(`default._bimi.${domain}`, "TXT");
   return (recs.find(r => r.data.startsWith("v=BIMI1")) || {}).data || null;
 }
-
 async function getTlsRpt(domain) {
   const recs = await dnsRaw(`_smtp._tls.${domain}`, "TXT");
   return (recs.find(r => r.data.startsWith("v=TLSRPTv1")) || {}).data || null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// IP INFO
+// IP INTELLIGENCE  — ip-api.com (CORS-friendly, no key needed, batch support)
 // ─────────────────────────────────────────────────────────────────────────────
 const ipInfoCache = new Map();
+
+async function getIPInfoBatch(ips) {
+  // ip-api.com/batch — up to 100 IPs per call, returns JSON array
+  const uncached = ips.filter(ip => !ipInfoCache.has(ip));
+  if (uncached.length) {
+    try {
+      const res  = await fetch('http://ip-api.com/batch?fields=query,org,country,regionName,city,status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(uncached.map(ip => ({ query: ip })))
+      });
+      if (res.ok) {
+        const data = await res.json();
+        data.forEach(d => {
+          ipInfoCache.set(d.query, {
+            org: d.org || 'N/A',
+            loc: [d.city, d.regionName, d.country].filter(Boolean).join(', ') || 'N/A',
+            ok: d.status === 'success'
+          });
+        });
+      }
+    } catch (_) { /* will fall back to N/A */ }
+  }
+  // Ensure any still-missing IPs get a fallback
+  ips.forEach(ip => {
+    if (!ipInfoCache.has(ip)) ipInfoCache.set(ip, { org: 'Unavailable', loc: 'Unavailable', ok: false });
+  });
+}
+
 async function getIPInfo(ip) {
-  if (ipInfoCache.has(ip)) return ipInfoCache.get(ip);
-  try {
-    const res = await fetch(`${IP_INFO_API}/${ip}/json/`, { headers: { 'Accept': 'application/json' } });
-    const d   = await res.json();
-    const info = {
-      org: d.org || d.asn || 'N/A',
-      loc: [d.city, d.region, d.country_name].filter(Boolean).join(', ') || 'N/A'
-    };
-    ipInfoCache.set(ip, info);
-    return info;
-  } catch { return { org: 'Unavailable', loc: 'Unavailable' }; }
+  if (!ipInfoCache.has(ip)) await getIPInfoBatch([ip]);
+  return ipInfoCache.get(ip);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1009,7 +828,6 @@ async function runAll() {
   const domain = document.getElementById('domainInput').value.trim().toLowerCase();
   if (!domain) return;
 
-  // Reset
   state = {
     rfcLookups: 0, visited: new Set(), flat: [], dnsCache: new Map(),
     rawRecords: [], treeRoot: null, allQualifier: null, limitHit: false,
@@ -1024,28 +842,21 @@ async function runAll() {
   setProgress(5);
   setStatus('Resolving SPF chain…', true);
 
-  // Run everything in parallel where safe
   try {
     await resolveSPF(domain, 0, null);
     setProgress(60);
     setStatus('Fetching DMARC, DKIM, MTA-STS…', true);
 
     const [dmarcRaw, dkimResults, mtaSts, bimi, tlsRpt] = await Promise.all([
-      getDMARC(domain),
-      probeDKIM(domain),
-      getMtaSts(domain),
-      getBimi(domain),
-      getTlsRpt(domain),
+      getDMARC(domain), probeDKIM(domain), getMtaSts(domain), getBimi(domain), getTlsRpt(domain),
     ]);
 
     setProgress(90);
-
-    // Parse DMARC for score
     state.dmarcTags = parseDMARC(dmarcRaw);
     state.hasDMARC  = !!dmarcRaw;
 
     renderSPFTable();
-    renderTree(state.treeRoot, document.getElementById('treeOutput'), true);
+    renderTree();
     renderRawRecords();
     renderDMARC(dmarcRaw, domain);
     renderDKIM(dkimResults, domain);
@@ -1078,27 +889,23 @@ async function runAll() {
 // ─────────────────────────────────────────────────────────────────────────────
 function renderSecurityScore() {
   const checks = [
-    { label: 'SPF record present',        pass: state.hasSPF },
-    { label: 'SPF uses -all or ~all',      pass: state.allQualifier === '-' || state.allQualifier === '~' },
-    { label: 'SPF within 10 RFC lookups',  pass: !state.limitHit && state.rfcLookups <= RFC_LIMIT },
-    { label: 'DMARC record present',       pass: state.hasDMARC },
-    { label: 'DMARC policy reject/quarantine', pass: ['reject','quarantine'].includes(state.dmarcTags['p']) },
-    { label: 'DMARC has rua reporting',    pass: !!state.dmarcTags['rua'] },
-    { label: 'DMARC pct = 100',            pass: !state.dmarcTags['pct'] || state.dmarcTags['pct'] === '100' },
+    { label: 'SPF record present',               pass: state.hasSPF },
+    { label: 'SPF uses -all or ~all',             pass: state.allQualifier === '-' || state.allQualifier === '~' },
+    { label: 'SPF within 10 RFC lookups',         pass: !state.limitHit && state.rfcLookups <= RFC_LIMIT },
+    { label: 'DMARC record present',              pass: state.hasDMARC },
+    { label: 'DMARC policy reject/quarantine',    pass: ['reject','quarantine'].includes(state.dmarcTags['p']) },
+    { label: 'DMARC has rua reporting',           pass: !!state.dmarcTags['rua'] },
+    { label: 'DMARC pct = 100',                   pass: !state.dmarcTags['pct'] || state.dmarcTags['pct'] === '100' },
   ];
-
   const passed = checks.filter(c => c.pass).length;
   const score  = Math.round(passed / checks.length * 100);
-  const stroke = 213.6;
-  const offset = stroke - (score / 100 * stroke);
+  const offset = 213.6 - (score / 100 * 213.6);
   const color  = score >= 80 ? 'var(--ok)' : score >= 50 ? 'var(--warn)' : 'var(--bad)';
-  const cls    = score >= 80 ? 'ok' : score >= 50 ? 'warn' : 'bad';
 
   document.getElementById('scoreArc').style.strokeDashoffset = offset;
   document.getElementById('scoreArc').style.stroke = color;
   document.getElementById('scoreNum').textContent  = score;
   document.getElementById('scoreNum').style.color  = color;
-
   document.getElementById('scoreDetails').innerHTML = checks.map(c => `
     <div class="score-row">
       <span class="score-label">${c.label}</span>
@@ -1107,7 +914,7 @@ function renderSecurityScore() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RENDER HELPERS
+// SPF TABLE
 // ─────────────────────────────────────────────────────────────────────────────
 function renderSPFTable() {
   const uniq  = dedup(state.flat);
@@ -1129,8 +936,7 @@ function renderSPFTable() {
 }
 
 function renderLookupMeter() {
-  const n    = RFC_LIMIT;
-  const used = Math.min(state.rfcLookups, n + 2); // cap display
+  const n = RFC_LIMIT, used = Math.min(state.rfcLookups, n + 2);
   const dots = [];
   for (let i = 1; i <= n; i++) {
     let cls = 'lookup-dot';
@@ -1146,44 +952,153 @@ function renderLookupMeter() {
   `;
 }
 
-function renderTree(node, container, isRoot) {
-  if (!node) return;
-  const wrap = document.createElement('div');
-  wrap.className = `tree-node${isRoot ? ' root' : ''}`;
-  const hdr = document.createElement('div');
-  hdr.className = 'tree-header';
-  hdr.innerHTML = `<span class="tree-domain">${node.domain}</span>
-    ${node.error ? `<span class="badge bad">No record</span>` : `<span class="badge ok">SPF found</span>`}`;
-  wrap.appendChild(hdr);
-  if (node.record) {
-    const spfDiv = document.createElement('div');
-    spfDiv.className = 'tree-spf'; spfDiv.textContent = node.record;
-    wrap.appendChild(spfDiv);
+// ─────────────────────────────────────────────────────────────────────────────
+// DNS TREE — collapsible nodes
+// ─────────────────────────────────────────────────────────────────────────────
+function colorizeSpf(record) {
+  if (!record) return '';
+  return record.split(/\s+/).map(token => {
+    const low = token.toLowerCase();
+    let cls = 'spf-token-v';
+    if      (low.startsWith('ip4:'))      cls = 'spf-token-ip4';
+    else if (low.startsWith('ip6:'))      cls = 'spf-token-ip6';
+    else if (low.startsWith('include:'))  cls = 'spf-token-include';
+    else if (low.startsWith('redirect=')) cls = 'spf-token-redirect';
+    else if (/^[+\-~?]?a[:/\s]?/.test(low) && !low.startsWith('all')) cls = 'spf-token-a';
+    else if (/^[+\-~?]?mx/.test(low))    cls = 'spf-token-mx';
+    else if (low.endsWith('-all'))        cls = 'spf-token-all-fail';
+    else if (low.endsWith('~all'))        cls = 'spf-token-all-soft';
+    else if (low.endsWith('+all'))        cls = 'spf-token-all-pass';
+    else if (low.endsWith('?all'))        cls = 'spf-token-all-neutral';
+    return `<span class="spf-token ${cls}">${escHtml(token)}</span>`;
+  }).join(' ');
+}
+
+function countIPs(node) {
+  let n = state.flat.filter(f => f.source === node.domain).length;
+  for (const c of node.children) n += countIPs(c);
+  return n;
+}
+
+function buildTreeNode(node, container) {
+  const depth = node.depth || 0;
+  const ipCount = countIPs(node);
+  const hasChildren = node.children && node.children.length > 0;
+  const hasContent  = node.record || node.error;
+  const isExpandable = hasContent || hasChildren;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = `tree-node depth-${depth}`;
+
+  // ── Toggle button (header) ──────────────────────────────────────────────
+  const toggle = document.createElement('button');
+  toggle.className    = 'tree-toggle';
+  toggle.setAttribute('aria-expanded', depth === 0 ? 'true' : 'false');
+
+  const depthLabels = ['ROOT', 'INC', 'INC', 'INC'];
+  toggle.innerHTML = `
+    <span class="tree-chevron">
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4,2 8,6 4,10"/>
+      </svg>
+    </span>
+    <div class="tree-node-left">
+      <div class="tree-depth-icon">${depthLabels[Math.min(depth, 3)]}</div>
+      <span class="tree-domain-label">${escHtml(node.domain)}</span>
+    </div>
+    <div class="tree-node-right">
+      ${ipCount > 0 ? `<span class="tree-ip-count">${ipCount} IP${ipCount !== 1 ? 's' : ''}</span>` : ''}
+      ${node.error  ? `<span class="badge bad">No record</span>`  : `<span class="badge ok">SPF found</span>`}
+    </div>`;
+
+  // ── Collapsible body ────────────────────────────────────────────────────
+  const body  = document.createElement('div');
+  body.className = `tree-body${depth === 0 ? ' open' : ''}`;
+  const inner = document.createElement('div');
+  inner.className = 'tree-body-inner';
+  const content = document.createElement('div');
+  content.className = 'tree-content';
+
+  if (node.error) {
+    content.innerHTML = `<div class="tree-error-note">⚠ ${escHtml(node.error)} — cannot resolve SPF for this domain</div>`;
+  } else if (node.record) {
+    content.innerHTML = `<div class="tree-spf-record">${colorizeSpf(node.record)}</div>`;
     const mechRow = document.createElement('div');
-    mechRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px';
+    mechRow.className = 'tree-mechs';
     (node.mechanisms || []).forEach(m => {
       const tag = document.createElement('span');
       tag.className = `mech-tag mech-${mechClass(m.mech.split(':')[0].split('/')[0].split('=')[0])}`;
-      tag.textContent = m.raw; mechRow.appendChild(tag);
+      tag.textContent = m.raw;
+      mechRow.appendChild(tag);
     });
-    wrap.appendChild(mechRow);
+    content.appendChild(mechRow);
   }
-  container.appendChild(wrap);
-  for (const child of (node.children || [])) renderTree(child, wrap, false);
+
+  // Recurse children
+  if (hasChildren) {
+    const childWrap = document.createElement('div');
+    childWrap.className = 'tree-children';
+    for (const child of node.children) buildTreeNode(child, childWrap);
+    content.appendChild(childWrap);
+  }
+
+  inner.appendChild(content);
+  body.appendChild(inner);
+
+  // ── Toggle interaction ──────────────────────────────────────────────────
+  toggle.addEventListener('click', () => {
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', !expanded);
+    body.classList.toggle('open', !expanded);
+  });
+
+  wrapper.appendChild(toggle);
+  wrapper.appendChild(body);
+  container.appendChild(wrapper);
 }
 
+function renderTree() {
+  const container = document.getElementById('treeOutput');
+  container.innerHTML = '';
+  if (!state.treeRoot) return;
+
+  const nodeCount = countNodes(state.treeRoot);
+  document.getElementById('treeStats').textContent =
+    `${nodeCount} domain${nodeCount !== 1 ? 's' : ''} in chain`;
+
+  buildTreeNode(state.treeRoot, container);
+}
+
+function countNodes(node) {
+  return 1 + (node.children || []).reduce((a, c) => a + countNodes(c), 0);
+}
+
+function setAllTreeNodes(expand) {
+  document.querySelectorAll('.tree-toggle').forEach(toggle => {
+    toggle.setAttribute('aria-expanded', expand);
+    const body = toggle.nextElementSibling;
+    if (body) body.classList.toggle('open', expand);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RAW RECORDS
+// ─────────────────────────────────────────────────────────────────────────────
 function renderRawRecords() {
   const out = document.getElementById('rawSpfOutput');
   out.innerHTML = '';
   state.rawRecords.forEach(({ domain, record }) => {
     out.innerHTML += `
       <div style="margin-bottom:16px">
-        <div style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:4px;font-family:var(--mono)">${domain}</div>
+        <div style="font-size:12px;font-weight:600;color:var(--text-3);margin-bottom:4px;font-family:var(--mono)">${escHtml(domain)}</div>
         <pre class="raw-spf">${escHtml(record)}</pre>
       </div>`;
   });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DMARC
+// ─────────────────────────────────────────────────────────────────────────────
 function renderDMARC(raw, domain) {
   const out = document.getElementById('dmarcOutput');
   if (!raw) {
@@ -1209,22 +1124,25 @@ function renderDMARC(raw, domain) {
       ${fields.map(f => `
         <div class="dmarc-item">
           <div class="dmarc-key">${f.label}</div>
-          <div class="dmarc-val">${f.badge ? `<span class="badge ${f.badge}">${f.val}</span>` : f.val}</div>
+          <div class="dmarc-val">${f.badge ? `<span class="badge ${f.badge}">${f.val}</span>` : escHtml(f.val)}</div>
         </div>`).join('')}
     </div>`;
-  if (policy === 'none')        addAlert('warn', 'DMARC policy is "none" — no enforcement. Emails can still be spoofed.');
-  else if (policy === 'quarantine') addAlert('info', 'DMARC policy is "quarantine". Consider upgrading to "reject" for full enforcement.');
-  if (!tags['rua'])             addAlert('warn', 'No DMARC rua (aggregate report URI) — you have no visibility into authentication failures.');
+  if (policy === 'none')         addAlert('warn', 'DMARC policy is "none" — no enforcement. Emails can still be spoofed.');
+  else if (policy==='quarantine') addAlert('info', 'DMARC policy is "quarantine". Consider upgrading to "reject" for full enforcement.');
+  if (!tags['rua'])              addAlert('warn', 'No DMARC rua (aggregate report URI) — you have no visibility into authentication failures.');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DKIM
+// ─────────────────────────────────────────────────────────────────────────────
 function renderDKIM(results, domain) {
   const out = document.getElementById('dkimOutput');
   if (!results.length) {
-    out.innerHTML = `<div class="alert info"><div class="alert-dot"></div>No DKIM TXT records found for common selectors on <strong>${domain}</strong>. Try adding your actual selector manually.</div>
+    out.innerHTML = `<div class="alert info"><div class="alert-dot"></div>No DKIM TXT records found for common selectors on <strong>${escHtml(domain)}</strong>. Try adding your actual selector manually.</div>
     <div style="margin-top:12px">
       <div style="display:flex;gap:8px;align-items:center">
         <input type="text" id="dkimSelectorInput" placeholder="Custom selector (e.g. google)" style="max-width:260px;font-size:13px;padding:8px 12px">
-        <button class="btn ghost" onclick="probeDKIMCustom('${domain}')">Probe</button>
+        <button class="btn ghost" onclick="probeDKIMCustom('${escHtml(domain)}')">Probe</button>
       </div>
       <div id="dkimCustomResult" style="margin-top:10px"></div>
     </div>`;
@@ -1233,14 +1151,14 @@ function renderDKIM(results, domain) {
   out.innerHTML = results.map(r => `
     <div style="margin-bottom:14px">
       <div style="font-size:12px;font-weight:600;margin-bottom:4px">
-        <span class="mech-tag mech-a" style="margin-right:6px">${r.selector}</span>
-        <span style="font-family:var(--mono);color:var(--text-3);font-size:11px">${r.selector}._domainkey.${domain}</span>
+        <span class="mech-tag mech-a" style="margin-right:6px">${escHtml(r.selector)}</span>
+        <span style="font-family:var(--mono);color:var(--text-3);font-size:11px">${escHtml(r.selector)}._domainkey.${escHtml(domain)}</span>
       </div>
       <pre class="extra-rec-pre">${escHtml(r.record)}</pre>
     </div>`).join('') +
     `<div style="margin-top:12px;display:flex;gap:8px;align-items:center">
       <input type="text" id="dkimSelectorInput" placeholder="Try another selector…" style="max-width:260px;font-size:13px;padding:8px 12px">
-      <button class="btn ghost" onclick="probeDKIMCustom('${domain}')">Probe</button>
+      <button class="btn ghost" onclick="probeDKIMCustom('${escHtml(domain)}')">Probe</button>
     </div>
     <div id="dkimCustomResult" style="margin-top:10px"></div>`;
 }
@@ -1249,25 +1167,24 @@ async function probeDKIMCustom(domain) {
   const sel = document.getElementById('dkimSelectorInput').value.trim();
   if (!sel) return;
   const out  = document.getElementById('dkimCustomResult');
-  out.innerHTML = `<div class="status-text"><div class="spinner"></div> Probing ${sel}._domainkey.${domain}…</div>`;
+  out.innerHTML = `<div class="status-text"><div class="spinner"></div> Probing ${escHtml(sel)}._domainkey.${escHtml(domain)}…</div>`;
   const recs = await dnsRaw(`${sel}._domainkey.${domain}`, "TXT");
   const rec  = recs.find(r => r.data.includes('p=') || r.data.startsWith('v=DKIM1'));
   if (rec) {
     out.innerHTML = `<div class="alert ok"><div class="alert-dot"></div><div>
-      <div style="font-weight:600;margin-bottom:4px">Found: ${sel}._domainkey.${domain}</div>
+      <div style="font-weight:600;margin-bottom:4px">Found: ${escHtml(sel)}._domainkey.${escHtml(domain)}</div>
       <pre class="extra-rec-pre" style="margin-top:4px">${escHtml(rec.data)}</pre>
     </div></div>`;
   } else {
-    out.innerHTML = `<div class="alert bad"><div class="alert-dot"></div>No DKIM record at ${sel}._domainkey.${domain}</div>`;
+    out.innerHTML = `<div class="alert bad"><div class="alert-dot"></div>No DKIM record at ${escHtml(sel)}._domainkey.${escHtml(domain)}</div>`;
   }
 }
 
 function renderMtaSts(raw, domain) {
   const out = document.getElementById('mtaStsOutput');
   out.innerHTML = raw
-    ? `<div class="alert ok"><div class="alert-dot"></div>MTA-STS record found — enforces TLS for inbound mail</div>
-       <pre class="extra-rec-pre">${escHtml(raw)}</pre>`
-    : `<div class="alert warn"><div class="alert-dot"></div>No MTA-STS record at _mta-sts.${domain} — inbound TLS is not enforced</div>`;
+    ? `<div class="alert ok"><div class="alert-dot"></div>MTA-STS record found — enforces TLS for inbound mail</div><pre class="extra-rec-pre">${escHtml(raw)}</pre>`
+    : `<div class="alert warn"><div class="alert-dot"></div>No MTA-STS record at _mta-sts.${escHtml(domain)} — inbound TLS is not enforced</div>`;
 }
 
 function renderBimi(raw, domain) {
@@ -1278,16 +1195,15 @@ function renderBimi(raw, domain) {
       <pre class="extra-rec-pre">${escHtml(raw)}</pre>
       ${logoUrl ? `<div style="margin-top:12px;font-size:13px;color:var(--text-3)">Logo URL: <a href="${escHtml(logoUrl)}" target="_blank" style="color:var(--accent)">${escHtml(logoUrl)}</a></div>` : ''}`;
   } else {
-    out.innerHTML = `<div class="alert info"><div class="alert-dot"></div>No BIMI record at default._bimi.${domain} — brand logo in email clients not configured</div>`;
+    out.innerHTML = `<div class="alert info"><div class="alert-dot"></div>No BIMI record at default._bimi.${escHtml(domain)} — brand logo in email clients not configured</div>`;
   }
 }
 
 function renderTlsRpt(raw, domain) {
   const out = document.getElementById('tlsRptOutput');
   out.innerHTML = raw
-    ? `<div class="alert ok"><div class="alert-dot"></div>TLS-RPT record found — TLS failure reports are being collected</div>
-       <pre class="extra-rec-pre">${escHtml(raw)}</pre>`
-    : `<div class="alert warn"><div class="alert-dot"></div>No TLS-RPT record at _smtp._tls.${domain} — TLS delivery failure reporting is not configured</div>`;
+    ? `<div class="alert ok"><div class="alert-dot"></div>TLS-RPT record found — TLS failure reports are being collected</div><pre class="extra-rec-pre">${escHtml(raw)}</pre>`
+    : `<div class="alert warn"><div class="alert-dot"></div>No TLS-RPT record at _smtp._tls.${escHtml(domain)} — TLS delivery failure reporting is not configured</div>`;
 }
 
 function renderAllQualifierAlert() {
@@ -1303,7 +1219,7 @@ function renderAllQualifierAlert() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AUDIT
+// AUDIT  — batches IP info lookups
 // ─────────────────────────────────────────────────────────────────────────────
 async function runAudit() {
   const raw = document.getElementById('userIps').value;
@@ -1313,15 +1229,19 @@ async function runAudit() {
   const tbody = document.getElementById('auditTableBody');
   tbody.innerHTML = '';
   document.getElementById('auditSummary').textContent = '';
+  document.getElementById('auditProgress').innerHTML =
+    `<div class="status-text"><div class="spinner"></div> Fetching IP intelligence for ${ips.length} address${ips.length !== 1 ? 'es' : ''}…</div>`;
 
   const uniq = dedup(state.flat);
+
+  // Batch fetch all IP info first (much faster than one-by-one)
+  const ipv4s = ips.filter(ip => !ip.includes(':'));
+  if (ipv4s.length) await getIPInfoBatch(ipv4s);
+
   let authorized = 0, unauthorized = 0;
+  tbody.innerHTML = '';
 
-  for (let i = 0; i < ips.length; i++) {
-    const ip = ips[i];
-    document.getElementById('auditProgress').innerHTML =
-      `<div class="status-text"><div class="spinner"></div> Looking up ${i+1}/${ips.length}: ${ip}</div>`;
-
+  for (const ip of ips) {
     const matches = uniq.filter(f => matchIP(ip, f.cidr));
     const best    = matches[0] || null;
     const info    = await getIPInfo(ip);
@@ -1330,13 +1250,13 @@ async function runAudit() {
 
     tbody.innerHTML += `
       <tr>
-        <td class="mono">${ip}</td>
+        <td class="mono">${escHtml(ip)}</td>
         <td><span class="badge ${best ? 'ok' : 'bad'}">${best ? '✓ Pass' : '✗ Fail'}</span></td>
-        <td class="mono" style="color:var(--text-3)">${best ? best.cidr : '—'}</td>
-        <td class="mono" style="color:var(--accent)">${best ? best.source : '—'}</td>
+        <td class="mono" style="color:var(--text-3)">${best ? escHtml(best.cidr) : '—'}</td>
+        <td class="mono" style="color:var(--accent)">${best ? escHtml(best.source) : '—'}</td>
         <td>${best ? `<span class="mech-tag mech-${mechClass(best.mech)}">${best.mech}</span>` : '—'}</td>
-        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)">${info.org}</td>
-        <td style="color:var(--text-3)">${info.loc}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)">${escHtml(info.org)}</td>
+        <td style="color:var(--text-3)">${escHtml(info.loc)}</td>
       </tr>`;
   }
 
@@ -1395,6 +1315,7 @@ function setStatus(html, loading) {
   document.getElementById('statusBar').innerHTML = `${loading ? '<div class="spinner"></div>' : ''}${html}`;
 }
 function setProgress(pct) { document.getElementById('progressFill').style.width = pct + '%'; }
+
 function dedup(arr) {
   const seen = new Set();
   return arr.filter(x => {
@@ -1410,21 +1331,14 @@ function mechClass(m) {
   if (b==='exists') return 'exists'; return b;
 }
 function qualifierLabel(q) {
-  return { '+':`<span class="badge ok">+ pass</span>`, '-':`<span class="badge bad">− fail</span>`,
-           '~':`<span class="badge warn">~ softfail</span>`, '?':`<span class="badge info">? neutral</span>` }[q] || q;
+  return {
+    '+':`<span class="badge ok">+ pass</span>`,
+    '-':`<span class="badge bad">− fail</span>`,
+    '~':`<span class="badge warn">~ softfail</span>`,
+    '?':`<span class="badge info">? neutral</span>`
+  }[q] || q;
 }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
